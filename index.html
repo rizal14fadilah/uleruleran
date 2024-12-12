@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Snake Game</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #4759ff; /* Warna latar belakang abu-abu */
+            font-family: Arial, sans-serif;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        body.dark {
+            background-color: #333;
+            color: #fff;
+        }
+
+        canvas {
+            border: 2px solid #333;
+            background-color: #FFFFFF; /* Warna latar belakang canvas putih */
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            transition: background-color 0.3s;
+        }
+
+        body.dark canvas {
+            background-color: #444;
+        }
+
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 10px;
+            color: inherit;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        .info {
+            display: flex;
+            justify-content: space-between;
+            width: 600px;
+            margin-bottom: 10px;
+        }
+
+        .info div {
+            font-size: 1.2rem;
+            font-weight: bold;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+        }
+
+        /* Mengubah warna teks "Score" dan "Level" menjadi hitam */
+        .info .label {
+            color: black;
+        }
+
+        /* Mengubah warna angka score dan level menjadi merah */
+        .info .number {
+            color: red;
+        }
+
+        #theme-toggle {
+            margin-top: 10px;
+            padding: 5px 15px;
+            font-size: 1rem;
+            background-color: #333;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        #theme-toggle:hover {
+            background-color: #555;
+        }
+
+        body.dark #theme-toggle {
+            background-color: #fff;
+            color: #333;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.2);
+            }
+        }
+
+        .food {
+            animation: pulse 1s infinite;
+        }
+    </style>
+</head>
+<body>
+    <h1>Snake Game Limited</h1>
+    <div class="info">
+        <div><span class="label">Score:</span> <span id="score" class="number">0</span></div>
+        <div><span class="label">Level:</span> <span id="level" class="number">1</span></div>
+    </div>
+    <canvas id="snake" width="600" height="500"></canvas>
+    <button id="theme-toggle">Switch Theme</button>
+    <script>
+        const canvas = document.getElementById("snake");
+        const ctx = canvas.getContext("2d");
+
+        const box = 20; // Ukuran satu grid (lebih kecil)
+        let snake = [{ x: 15 * box, y: 12 * box }];
+        let food = {
+            x: Math.floor(Math.random() * (canvas.width / box)) * box,
+            y: Math.floor(Math.random() * (canvas.height / box)) * box
+        };
+        let direction = null;
+        let score = 0;
+        let level = 1;
+        let speed = 100;
+
+        // Tambahkan suara
+        const eatSound = new Audio("sound1.mp3");
+        const gameOverSound = new Audio("sound2.mp3");
+
+        document.addEventListener("keydown", directionHandler);
+
+        function directionHandler(event) {
+            if (event.key === "ArrowLeft" && direction !== "RIGHT") direction = "LEFT";
+            if (event.key === "ArrowUp" && direction !== "DOWN") direction = "UP";
+            if (event.key === "ArrowRight" && direction !== "LEFT") direction = "RIGHT";
+            if (event.key === "ArrowDown" && direction !== "UP") direction = "DOWN";
+        }
+
+        function collision(head, array) {
+            for (let i = 0; i < array.length; i++) {
+                if (head.x === array[i].x && head.y === array[i].y) return true;
+            }
+            return false;
+        }
+
+        function draw() {
+            // Mengganti background canvas menjadi putih
+            ctx.fillStyle = "#FFFFFF"; // Warna latar belakang canvas putih
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Gambar tubuh ular
+            for (let i = 0; i < snake.length; i++) {
+                ctx.fillStyle = i === 0 ? "darkblue" : "blue";
+                ctx.fillRect(snake[i].x, snake[i].y, box, box);
+                ctx.strokeStyle = "darkblue";
+                ctx.strokeRect(snake[i].x, snake[i].y, box, box);
+            }
+
+            // Gambar makanan dengan kelas 'food' untuk animasi berkedip
+            ctx.fillStyle = "red";
+            ctx.beginPath();
+            ctx.arc(food.x + box / 2, food.y + box / 2, box / 2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = "darkred";
+            ctx.stroke();
+
+            let snakeX = snake[0].x;
+            let snakeY = snake[0].y;
+
+            // Gerakan ular
+            if (direction === "LEFT") snakeX -= box;
+            if (direction === "UP") snakeY -= box;
+            if (direction === "RIGHT") snakeX += box;
+            if (direction === "DOWN") snakeY += box;
+
+            // Logika tembus dinding
+            if (snakeX < 0) snakeX = canvas.width - box;
+            if (snakeX >= canvas.width) snakeX = 0;
+            if (snakeY < 0) snakeY = canvas.height - box;
+            if (snakeY >= canvas.height) snakeY = 0;
+
+            // Jika ular makan makanan
+            if (snakeX === food.x && snakeY === food.y) {
+                eatSound.play();
+                score += 10;
+                document.getElementById("score").textContent = score;
+                food = {
+                    x: Math.floor(Math.random() * (canvas.width / box)) * box,
+                    y: Math.floor(Math.random() * (canvas.height / box)) * box
+                };
+
+                // Perbarui level dan kecepatan
+                if (score % 50 === 0) {
+                    level++;
+                    document.getElementById("level").textContent = level;
+                    clearInterval(game);
+                    speed -= 5;
+                    game = setInterval(draw, speed);
+                }
+            } else {
+                snake.pop();
+            }
+
+            let newHead = { x: snakeX, y: snakeY };
+
+            // Cek tabrakan dengan tubuh ular
+            if (collision(newHead, snake)) {
+                gameOverSound.play();
+                clearInterval(game);
+                alert("Game Over! Your score is " + score);
+                location.reload();
+            }
+
+            snake.unshift(newHead);
+        }
+
+        // Ganti tema
+        document.getElementById("theme-toggle").addEventListener("click", () => {
+            document.body.classList.toggle("dark");
+        });
+
+        let game = setInterval(draw, speed);
+    </script>
+</body>
+</html>
